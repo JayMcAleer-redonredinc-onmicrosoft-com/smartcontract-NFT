@@ -1,0 +1,22 @@
+{
+  "name": "nft_marketplace_smartcontract",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DragonYu1010/NFT_MarketPlace_SmartContract.git"
+  },
+  "author": "David Yu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DragonYu1010/NFT_MarketPlace_SmartContract/issues"
+  },
+  "homepage": "https://github.com/DragonYu1010/NFT_MarketPlace_SmartContract#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.1.0"
+  }
+}
