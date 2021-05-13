@@ -24,12 +24,34 @@ contract Meme is ERC1155, Ownable{
     uint[] black_list;
     mapping (uint => bool) isBlacklist;
 
-    constructor() ERC1155("") Ownable() {}
+    address payable eth_receiver;
+
+    constructor(
+        address payable _ethReceiver
+    ) ERC1155("") Ownable() {
+        require(_ethReceiver != address(0));
+        eth_receiver = _ethReceiver;
+    }
     function Set_nft (string memory hash_, uint amount_, uint e_price_, uint d_price_) public {
+        // require : hash_ can not be empty string
+        require(bytes(hash_).length > 0, "hash_ can not be empty string");
+        // require : amount can not be zero or less than zero
+        require(amount_ > 0, "amount can not be zero or less than zero");
         _mint(msg.sender, nft_list.length, amount_, "");
 
         NFT memory temp = NFT(hash_, e_price_, d_price_);
         nft_list.push(temp);
+    }
+    //(bool platformTransferSuccess,) = platformFeeRecipient.call{value : platformFeeInETH}("");
+    //require(platformTransferSuccess, "NFTAuction.resultAuction: Failed to send platform fee");
+    function Batch_set_nft (string[] memory hashes_, uint[] memory amounts_, uint[] memory e_prices_, uint[] memory d_prices_) public {
+        require(hashes_.length == amounts_.length, "have same amount");
+        require(hashes_.length == e_prices_.length, "have same amount");
+        require(hashes_.length == d_prices_.length, "have same amount");
+
+        for (uint i = 0 ; i < hashes_.length ; i++) {
+            Set_nft(hashes_[i], amounts_[i], e_prices_[i], d_prices_[i]);
+        }
     }
 
     function Get_nft (uint id_) public view returns (string memory, uint, uint) {
@@ -97,12 +119,16 @@ contract Meme is ERC1155, Ownable{
         );
     }
 
-    function sell_fee (uint price_) public view returns(uint) {
+    function Get_sell_fee (uint price_) public view returns(uint) {
+        // require : price_ has to be available
+        require( price_ > 0, "price_ has to be available");
+        return price_ * 25 / 1000;
+    }
+    function Get_real_price (uint price_) public view returns (uint) {
         // require : price_ has to be available
         require( price_ > 0, "price_ has to be available");
         return price_ * 975 / 1000;
     }
-    
     function Buying (uint sell_id_, uint amount_, uint token_kind_) public payable {
         // require : sell_id_ has to be less than sell list length
         require( sell_id_ < sell_list.length,  "sell_id_ has to be less than sell list length");
@@ -117,9 +143,11 @@ contract Meme is ERC1155, Ownable{
         }
         
         if( token_kind_ == 0 ){
-            sell_list[sell_id_].owner_.transfer(sell_fee(sell_list[sell_id_].e_price_));
+            sell_list[sell_id_].owner_.transfer(Get_real_price(sell_list[sell_id_].e_price_));
+            eth_receiver.call{value: Get_sell_fee(sell_list[sell_id_].e_price_)}("");
         } else {
-            sell_list[sell_id_].owner_.transfer(sell_fee(sell_list[sell_id_].d_price_));
+            sell_list[sell_id_].owner_.transfer(Get_real_price(sell_list[sell_id_].d_price_));
+            eth_receiver.call{value: Get_sell_fee(sell_list[sell_id_].d_price_)}("");
         }
 
     }
@@ -138,8 +166,8 @@ contract Meme is ERC1155, Ownable{
         require(id_ < nft_list.length, "id_ has to be less than nft length");
         return isBlacklist[id_];
     }
-    receive() payable external {}
-    function getETH() external onlyOwner {
-        payable(msg.sender).transfer(address(this).balance);
-    }
+    // receive() payable external {}
+    // function getETH() external onlyOwner {
+    //     payable(msg.sender).transfer(address(this).balance);
+    // }
 }
