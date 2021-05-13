@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./SafeMath.sol";
 
 contract Mint is ERC1155, Ownable {
     // collection list uint(id) => string(hash)
@@ -12,12 +13,17 @@ contract Mint is ERC1155, Ownable {
     // collection counter
     uint collection_counter;
 
+    // const selling fee
+    uint selling_fee;
+    // listing fee variable
+    uint listing_fee;
 
-    // nft : bytes32 (hash_), address (owner_), uint (price_)
+    // nft : bytes32 (hash_), address (owner_), uint (eth_price_), uint (dank_price_)
     struct NFT {
         bytes32 hash_;
         address payable owner_;
-        uint price_;
+        uint eth_price_;
+        uint dank_price_;
     }
     // nft list uint(id) => NFT(nft)
     mapping (uint => NFT) nft_list;
@@ -39,13 +45,21 @@ contract Mint is ERC1155, Ownable {
     // uint (collection_id) => uint (collection_capacity)
     mapping (uint => uint) nft_counter_per_collection;
 
-    // list of saling nft uint(saling_id) => uint (nft_global_id)
-    mapping(uint => uint) selling_list;
+    // selling nft struct
+    struct SellNFT {
+        uint nft_global_id;
+        uint amount_;
+        uint eth_price_;
+        uint dank_price_;
+    }
+    // list of saling nft uint(selling_id) => SellNFT
+    mapping(uint => SellNFT) selling_list;
     // selling list counter
     uint selling_list_counter;
     // constructor
     constructor() public ERC1155("") Ownable() {}
-
+    // receive 
+    receive() payable external {}
     // Create Collection
     function create_collection (string memory _hash) public returns (bool) {
         // require : collection name cannot be empty string
@@ -73,12 +87,13 @@ contract Mint is ERC1155, Ownable {
 
     // mint single NFT 
     // params: NFT hash, collection ID, amount
-    function single_mint (bytes32 _hash, uint _collection_id, uint _amount, uint _price) public returns (uint) {
+    function single_mint (bytes32 _hash, uint _collection_id, uint _amount, uint _eth_price, uint _dank_price) public returns (uint) {
 
 
         nft_list[nft_counter].hash_ = _hash;
         nft_list[nft_counter].owner_ = payable(msg.sender);
-        nft_list[nft_counter].price_ = _price;
+        nft_list[nft_counter].eth_price_ = _eth_price;
+        nft_list[nft_counter].dank_price_ = _dank_price;
 
         // // store hash value of the new nft
         // nft_hash_list[nft_counter] = _hash;
@@ -102,15 +117,14 @@ contract Mint is ERC1155, Ownable {
     //     bytes32[2] memory others = [bytes32("one"), bytes32("two")];
     //     return len;
     // }
-    function batch_mint (bytes32[] memory _hashes, uint[] memory _collection_ids, uint[] memory _amounts, uint[] memory _prices) public{
+    function batch_mint (bytes32[] memory _hashes, uint[] memory _collection_ids, uint[] memory _amounts, uint[] memory _eth_prices, uint[] memory _dank_prices) public{
         // require : length of _hashes and _collection_ids and _amounts have to equal
         require(_hashes.length == _collection_ids.length, "`_hashes` size has to be equal to `_collection_ids` size");
         // the size of nfts which has to be minted
         uint length = _hashes.length;
         for (uint i = 0 ; i < length ; i++) {
-            single_mint(_hashes[i], _collection_ids[i], _amounts[i], _prices[i]);
+            single_mint(_hashes[i], _collection_ids[i], _amounts[i], _eth_prices[i], _dank_prices[i]);
         }
-
     }
 
     // Get nft hash by nft id
@@ -138,10 +152,14 @@ contract Mint is ERC1155, Ownable {
     //             Trading                 //
     /////////////////////////////////////////
     // add new nft on the selling list
-    function set_selling_list (uint nft_global_id) public returns(uint) {
+    function set_selling_list (uint nft_global_id, uint amount_, uint price_) public returns(uint) {
         // require : nft_global_id has to be available under the nft global counter
         require(nft_global_id < nft_counter, "nft id has to be under the nft global counter");
-
+        // require : amount_ has to be less than owner's amount
+        require(amount_ < _balances[nft_global_id][msg.sender], "amount_ has to be less than owner's amount");
+        // require : msg.sender has to own the nft
+        require(_balances[nft_global_id][msg.sender] > 0, "msg.sender has to own the nft");
+        
         selling_list[selling_list_counter] = nft_global_id;
         selling_list_counter++;
 
@@ -181,18 +199,59 @@ contract Mint is ERC1155, Ownable {
         }
         return false;
     }
+    // set selling fee
+    // unit is `%`
+    function set_selling_fee (uint fee_) public onlyOwner returns (bool) {
+        // require : fee_ is range from 0 to 100, unit is percentage %
+        require(fee_ < 100, "fee has to be less than 100%");
+        selling_fee = fee_;
+        return true;
+    }
     // buying nft 
-    function buy_nft (uint _nft_id, uint amount_) public payable {
+    // @variable coin_id 0: ETH   1: DANK
+    function buy_nft (uint _nft_id, uint amount_, uint coin_id) public payable {
         // require : nft_global_id has to be less than totla nft counter
         require(_nft_id < nft_counter, "nft_global_id has to be less than totla nft counter");
         // require : check if the nft is on the selling list
         require(is_selling_list(_nft_id), "nft has to be on the selling list");
 
+        // nft price
+        uint price;
+        if(coin_id == 0) {
+            price = nft_list[_nft_id].eth_price_;
+        } else {
+            price = nft_list[_nft_id].dank_price_;
+        }
+        // require : msg.value has to be equal to the nft price
+        require(price == msg.value, "msg.value has to be equal to the nft price");
+        // calculate selling price
+        uint selling_price;
+        selling_price = mul(div(price, 100), 95);
+        // calculate selling fee
         // Current owner of nft_id
         address payable current_owner = nft_list[_nft_id].owner_ ;
         // the new owner of nft_id
         address payable new_owner = payable(msg.sender);
+        // transfer from new owner to old owner
+        current_owner.transfer(selling_price);
+
+        // transfer selling fee to smart contract
+    }
+    // buy nft
+    function buy (uint nft_id_, uint amount_, uint coin_id) public payable {
+        if(coin_id == 0) {
+            // require : msg.value has to be equal to the nft price
+            require(msg.value == nft_list[nft_id_].eth_price_, "msg.value has to be equal to the nft price");
+        } else {
+            // require : msg.value has to be equal to the nft price
+            require(msg.value == nft_list[nft_id_].dank_price_, "msg.value has to be equal to the nft price");
+        }
+        // require : nft_id has to be less than nft counter
+        require(nft_id_ < nft_counter, "nft_id has to be less than nft counter");
+
         
     }
-
+    function reclaimETH() external onlyOwner {
+        msg.sender.transfer(address(this).balance);
+    }
 }
