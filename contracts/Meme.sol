@@ -2,9 +2,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./SafeMath.sol";
 
-contract Mint_new is ERC1155, Ownable{
+contract Meme is ERC1155, Ownable{
     
     struct NFT {
         string hash_;
@@ -26,14 +25,14 @@ contract Mint_new is ERC1155, Ownable{
     mapping (uint => bool) isBlacklist;
 
     constructor() ERC1155("") Ownable() {}
-    function Set_nft (string hash_, uint amount_, uint e_price_, uint d_price_) public view {
+    function Set_nft (string memory hash_, uint amount_, uint e_price_, uint d_price_) public {
         _mint(msg.sender, nft_list.length, amount_, "");
 
-        NFT temp = NFT(hash_, e_price_, d_price_);
+        NFT memory temp = NFT(hash_, e_price_, d_price_);
         nft_list.push(temp);
     }
 
-    function Get_nft (uint id_) public view returns (string, uint, uint) {
+    function Get_nft (uint id_) public view returns (string memory, uint, uint) {
         return (
             nft_list[id_].hash_,
             nft_list[id_].e_price_,
@@ -48,40 +47,40 @@ contract Mint_new is ERC1155, Ownable{
     function Get_list_fee (uint price_) public view returns (uint) {
         return (price_/100);
     }
-    function Set_sell (uint id_, uint e_price_, uint d_price_, uint amount_) public view returns(uint){
+    function Set_sell (uint id_, uint e_price_, uint d_price_, uint amount_) public payable returns(uint){
         // require : id_ is avaliable 
         require( id_ < nft_list.length, "ID has to be less than nft list length");
         // require : set at least one of two coins
         require ( (e_price_ > 0) || (d_price_ > 0), "set at least one of two coins");
         // require : 1% fee
         if ( e_price_ == 0 && d_price_ > 0) {
-            require(list_fee(d_price_) * amount_ == msg.value, "1% fee");
+            require(Get_list_fee(d_price_) * amount_ == msg.value, "1% fee");
         } else if ( e_price_ > 0 && d_price_ == 0) {
-            require(list_fee(e_price_) * amount_ == msg.value, "1% fee");
+            require(Get_list_fee(e_price_) * amount_ == msg.value, "1% fee");
         } else if ( e_price_ > 0 && d_price_ > 0) {
-            require((list_fee(e_price_) + list_fee(d_price_)) * amount_ == msg.value, "1% fee");
+            require((Get_list_fee(e_price_) + Get_list_fee(d_price_)) * amount_ == msg.value, "1% fee");
         }
         // require : amount_ has to be available
-        require((amount_>0) && ( _balances[id_][msg.sender] >= amount_ ), "amount_ has to be available");
+        require((amount_>0) && ( balanceOf(msg.sender, id_) >= amount_ ), "amount_ has to be available");
         
         Sell memory sell_temp = Sell(id_, e_price_, d_price_, payable(msg.sender), amount_);
         sell_list.push(sell_temp);
         return (sell_list.length - 1);
     }
 
-    function Update_sell (uint sell_id_, uint e_price_, uint d_price_, uint amount_) public view {
+    function Update_sell (uint sell_id_, uint e_price_, uint d_price_, uint amount_) public {
         // require : id_ is avaliable 
-        require( id_ < sell_list.length, "ID has to be less than sell list length");
+        require( sell_id_ < sell_list.length, "ID has to be less than sell list length");
         // require : set at least one of two coins
         require ( (e_price_ > 0) || (d_price_ > 0), "set at least one of two coins");
         // require : amount_ has to be available
-        require((amount_>0) && ( _balances[id_][msg.sender] >= amount_ ), "amount_ has to be available");
+        require((amount_>0) && ( balanceOf(msg.sender, sell_list[sell_id_].nft_id_) >= amount_ ), "amount_ has to be available");
         sell_list[sell_id_].e_price_ = e_price_;
         sell_list[sell_id_].d_price_ = d_price_;
         sell_list[sell_id_].amount_ = amount_;
     }
 
-    function Remove_selling (uint id_) public onlyOwner view {
+    function Remove_selling (uint id_) public onlyOwner {
         // require : id_ is avaliable 
         require( id_ < sell_list.length, "ID has to be less than sell list length");
         delete sell_list[id_];
@@ -118,14 +117,14 @@ contract Mint_new is ERC1155, Ownable{
         }
         
         if( token_kind_ == 0 ){
-            sell_list[sell_id_].owner.transfer(sell_fee(sell_list[sell_id_].e_price_));
+            sell_list[sell_id_].owner_.transfer(sell_fee(sell_list[sell_id_].e_price_));
         } else {
-            sell_list[sell_id_].owner.transfer(sell_fee(sell_list[sell_id_].d_price_));
+            sell_list[sell_id_].owner_.transfer(sell_fee(sell_list[sell_id_].d_price_));
         }
 
     }
     
-    function Set_blacklist (uint id_) public onlyOwner view {
+    function Set_blacklist (uint id_) public onlyOwner {
         // require : id_ has to be less than nft length
         require(id_ < nft_list.length, "id_ has to be less than nft length");
         // require : id_ has not already set in the black list
@@ -141,6 +140,6 @@ contract Mint_new is ERC1155, Ownable{
     }
     receive() payable external {}
     function getETH() external onlyOwner {
-        msg.sender.transfer(address(this).balance);
+        payable(msg.sender).transfer(address(this).balance);
     }
 }
