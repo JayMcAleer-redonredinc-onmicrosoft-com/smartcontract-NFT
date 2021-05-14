@@ -11,7 +11,11 @@ contract Meme is ERC1155, Ownable{
         uint d_price_;
     }
     NFT[] nft_list;
-
+    struct Collection {
+        string hash_;
+        address creator_;
+    }
+    Collection[] collection_list;
     struct Sell {
         uint nft_id_;
         uint e_price_;
@@ -52,6 +56,33 @@ contract Meme is ERC1155, Ownable{
         for (uint i = 0 ; i < hashes_.length ; i++) {
             Set_nft(hashes_[i], amounts_[i], e_prices_[i], d_prices_[i]);
         }
+    }
+
+    function Set_collection(string memory hash_) public {
+        // require : hash_ can not be empty string
+        require(bytes(hash_).length > 0, "hash_ can not be empty string");
+
+        Collection memory temp = Collection(hash_, msg.sender);
+        collection_list.push(temp);
+    }
+
+    function Get_collection(uint id_) public returns (string memory, address) {
+        // require : id has to be less than the collection amount
+        require( id_ < collection_list.length, "id has to be less than the collection amount");
+
+        return (
+            collection_list[id_].hash_,
+            collection_list[id_].creator_
+        );
+    }
+
+    function Remove_collection (uint id_) public returns (bool) {
+        // require : id has to be less than the collection amount
+        require( id_ < collection_list.length, "id has to be less than the collection amount");
+
+        delete collection_list[id_];
+
+        return true;
     }
 
     function Get_nft (uint id_) public view returns (string memory, uint, uint) {
