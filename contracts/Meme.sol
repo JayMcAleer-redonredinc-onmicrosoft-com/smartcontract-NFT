@@ -8,6 +8,7 @@ contract Meme is ERC1155, Ownable{
     
     struct NFT {
         string hash_;
+        uint collection_id_;
         uint e_price_;
         uint d_price_;
     }
@@ -75,25 +76,25 @@ contract Meme is ERC1155, Ownable{
         return false;
     }
 
-    function Set_nft (string memory hash_, uint amount_, uint e_price_, uint d_price_) public {
+    function Set_nft (string memory hash_, uint collection_id_, uint amount_, uint e_price_, uint d_price_) public {
         // require : hash_ can not be empty string
         require(bytes(hash_).length > 0, "hash_ can not be empty string");
         // require : amount can not be zero or less than zero
         require(amount_ > 0, "amount can not be zero or less than zero");
         _mint(msg.sender, nft_list.length, amount_, "");
 
-        NFT memory temp = NFT(hash_, e_price_, d_price_);
+        NFT memory temp = NFT(hash_, collection_id_, e_price_, d_price_);
         nft_list.push(temp);
     }
     //(bool platformTransferSuccess,) = platformFeeRecipient.call{value : platformFeeInETH}("");
     //require(platformTransferSuccess, "NFTAuction.resultAuction: Failed to send platform fee");
-    function Batch_set_nft (string[] memory hashes_, uint[] memory amounts_, uint[] memory e_prices_, uint[] memory d_prices_) public {
+    function Batch_set_nft (string[] memory hashes_, uint[] memory collection_ids_, uint[] memory amounts_, uint[] memory e_prices_, uint[] memory d_prices_) public {
         require(hashes_.length == amounts_.length, "have same amount");
         require(hashes_.length == e_prices_.length, "have same amount");
         require(hashes_.length == d_prices_.length, "have same amount");
 
         for (uint i = 0 ; i < hashes_.length ; i++) {
-            Set_nft(hashes_[i], amounts_[i], e_prices_[i], d_prices_[i]);
+            Set_nft(hashes_[i], collection_ids_[i], amounts_[i], e_prices_[i], d_prices_[i]);
         }
     }
 
