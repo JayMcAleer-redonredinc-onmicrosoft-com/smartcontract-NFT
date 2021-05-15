@@ -33,6 +33,8 @@ contract Meme is ERC1155, Ownable{
 
     IERC20 public dankToken;
 
+    address[] public admin_list;
+
     constructor(
         address payable _ethReceiver,
         IERC20 dankToken_
@@ -41,7 +43,38 @@ contract Meme is ERC1155, Ownable{
         require(address(dankToken_) != address(0), "Invalid token");
         eth_receiver = _ethReceiver;
         dankToken = dankToken_;
+        admin_list.push(eth_receiver);
     }
+
+    function Set_admin (address new_admin_) public onlyOwner returns (bool) {
+        require(new_admin_ != address(0), "address can not be empty");
+        // require(new_admin_ != eth_receiver, "main administrator can not be pushed");
+
+        admin_list.push(new_admin_);
+
+        return true;
+    }
+
+    function Get_admin () public view returns (address[] memory) {
+        return admin_list;
+    }
+
+    function Remove_admin (uint id_) public onlyOwner returns (bool) {
+        require(id_ < admin_list.length, "id_ has to be less than array capacity");
+
+        delete admin_list[id_];
+
+        return true;
+    }
+
+    function is_admin(address user_) public view returns (bool) {
+        for (uint i = 0 ; i < admin_list.length ; i++) {
+            if (admin_list[i] == user_)
+                return true;
+        }
+        return false;
+    }
+
     function Set_nft (string memory hash_, uint amount_, uint e_price_, uint d_price_) public {
         // require : hash_ can not be empty string
         require(bytes(hash_).length > 0, "hash_ can not be empty string");
@@ -67,12 +100,14 @@ contract Meme is ERC1155, Ownable{
     function Set_collection(string memory hash_) public {
         // require : hash_ can not be empty string
         require(bytes(hash_).length > 0, "hash_ can not be empty string");
+        // require : msg.sender has to be admin list
+        require(is_admin(msg.sender), "msg.sender has to become admin");
 
         Collection memory temp = Collection(hash_, msg.sender);
         collection_list.push(temp);
     }
 
-    function Get_collection(uint id_) public returns (string memory, address) {
+    function Get_collection(uint id_) public view returns (string memory, address) {
         // require : id has to be less than the collection amount
         require( id_ < collection_list.length, "id has to be less than the collection amount");
 
@@ -85,6 +120,8 @@ contract Meme is ERC1155, Ownable{
     function Remove_collection(uint id_) public returns (bool) {
         // require : id has to be less than the collection amount
         require( id_ < collection_list.length, "id has to be less than the collection amount");
+        // require : msg.sender has to be admin list
+        require(is_admin(msg.sender), "msg.sender has to become admin");
 
         delete collection_list[id_];
 
