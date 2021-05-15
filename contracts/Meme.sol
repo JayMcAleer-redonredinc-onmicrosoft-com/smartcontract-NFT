@@ -82,7 +82,7 @@ contract Meme is ERC1155, Ownable{
         );
     }
 
-    function Remove_collection (uint id_) public returns (bool) {
+    function Remove_collection(uint id_) public returns (bool) {
         // require : id has to be less than the collection amount
         require( id_ < collection_list.length, "id has to be less than the collection amount");
 
@@ -115,7 +115,7 @@ contract Meme is ERC1155, Ownable{
         if ( e_price_ == 0 && d_price_ > 0) {
             require(Get_list_fee(d_price_) * amount_ == msg.value, "1% fee");
             dankToken.transferFrom(msg.sender, eth_receiver, Get_list_fee(d_price_));
-        } else ( e_price_ > 0 && d_price_ == 0) {
+        } else if ( e_price_ > 0 && d_price_ == 0) {
             require(Get_list_fee(e_price_) * amount_ == msg.value, "1% fee");
             eth_receiver.call{value: Get_list_fee(e_price_)}("");
         } 
