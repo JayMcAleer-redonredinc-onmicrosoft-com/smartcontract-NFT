@@ -2,6 +2,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Meme is ERC1155, Ownable{
     
@@ -30,11 +31,16 @@ contract Meme is ERC1155, Ownable{
 
     address payable eth_receiver;
 
+    IERC20 public dankToken;
+
     constructor(
-        address payable _ethReceiver
+        address payable _ethReceiver,
+        IERC20 dankToken_
     ) ERC1155("") Ownable() {
         require(_ethReceiver != address(0));
+        require(address(dankToken_) != address(0), "Invalid token");
         eth_receiver = _ethReceiver;
+        dankToken = dankToken_;
     }
     function Set_nft (string memory hash_, uint amount_, uint e_price_, uint d_price_) public {
         // require : hash_ can not be empty string
@@ -177,8 +183,10 @@ contract Meme is ERC1155, Ownable{
             sell_list[sell_id_].owner_.transfer(Get_real_price(sell_list[sell_id_].e_price_));
             eth_receiver.call{value: Get_sell_fee(sell_list[sell_id_].e_price_)}("");
         } else {
-            sell_list[sell_id_].owner_.transfer(Get_real_price(sell_list[sell_id_].d_price_));
-            eth_receiver.call{value: Get_sell_fee(sell_list[sell_id_].d_price_)}("");
+            dankToken.transferFrom(msg.sender, eth_receiver, Get_sell_fee(sell_list[sell_id_].d_price_));
+            dankToken.transferFrom(msg.sender, sell_list[sell_id_].owner_, Get_real_price(sell_list[sell_id_].d_price_));
+            // sell_list[sell_id_].owner_.transfer(Get_real_price(sell_list[sell_id_].d_price_));
+            // eth_receiver.call{value: Get_sell_fee(sell_list[sell_id_].d_price_)}("");
         }
 
     }
