@@ -121,9 +121,21 @@ contract Meme is ERC1155, Ownable{
         }
         // require : amount_ has to be available
         require((amount_>0) && ( balanceOf(msg.sender, id_) >= amount_ ), "amount_ has to be available");
+        // require :  token is not in the black list
+        require(isBlacklist[id_] != true, "Token of black list can not be sold.");
         
         Sell memory sell_temp = Sell(id_, e_price_, d_price_, payable(msg.sender), amount_);
         sell_list.push(sell_temp);
+
+        if ( e_price_ == 0 && d_price_ > 0) {
+            dankToken.transferFrom(msg.sender, eth_receiver, Get_list_fee(d_price_));
+        } else if ( e_price_ > 0 && d_price_ == 0) {
+            eth_receiver.call{value: Get_list_fee(e_price_)}("");
+        } else if ( e_price_ > 0 && d_price_ > 0) {
+            dankToken.transferFrom(msg.sender, eth_receiver, Get_list_fee(d_price_));
+            eth_receiver.call{value: Get_list_fee(e_price_)}("");
+        }
+
         return (sell_list.length - 1);
     }
 
